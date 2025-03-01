@@ -1,0 +1,67 @@
+# Reference: <https://postmarketos.org/vendorkernel>
+# Kernel config based on: arch/arm64/configs/(CHANGEME!)
+
+pkgname=linux-samsung-sm-m115f
+pkgver=4.9.227
+pkgrel=0
+pkgdesc="Samsung Galaxy M11 kernel fork"
+arch="aarch64"
+_carch="arm64"
+_flavor="samsung-sm-m115f"
+url="https://kernel.org"
+license="GPL-2.0-only"
+options="!strip !check !tracedeps pmb:cross-native"
+makedepends="
+	bash
+	bc
+	bison
+	devicepkg-dev
+	findutils
+	flex
+	openssl-dev
+	perl
+	android-tools
+	dtc
+"
+depends="android-tools"
+
+# Source
+_repository="android_samsung_sm-m115f_m11q"
+_commit="8294c3a7808bdda331d2291a46f3ffe6b22ecb46"
+_config="config-$_flavor.$arch"
+source="
+	$pkgname-$_commit.tar.gz::https://github.com/dipaashu/$_repository/archive/$_commit.tar.gz
+	$_config
+	fix-check-lxdialog.patch
+"
+builddir="$srcdir/$_repository-$_commit"
+_outdir="out"
+
+prepare() {
+	default_prepare
+	. downstreamkernel_prepare
+}
+
+build() {
+	unset LDFLAGS
+	make O="$_outdir" ARCH="$_carch" CC="${CC:-gcc}" \
+		KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-postmarketOS"
+}
+
+package() {
+	downstreamkernel_package "$builddir" "$pkgdir" "$_carch" \
+		"$_flavor" "$_outdir"
+	mkdir "$pkgdir/boot/dtbs"
+	mkdir "$pkgdir/boot/samsung"
+	mkdir "$pkgdir/boot/dtbs/samsung"
+	cpp -nostdinc -I "$srcdir/$_repository-$_commit/include" -I "$srcdir/$_repository-$_commit/arch"  -undef -x assembler-with-cpp "$srcdir/$_repository-$_commit/arch/arm64/boot/dts/samsung/sdm450-pmi632.dts" "$srcdir/sdm450-pmi632.dts"
+	dtc -o "$srcdir/sdm450-pmi632.dtb" "$srcdir/sdm450-pmi632.dts"
+		cp "$srcdir/sdm450-pmi632.dtb" "$pkgdir/boot/dtbs/samsung/"
+		cp "$srcdir/sdm450-pmi632.dtb" "$pkgdir/boot/samsung/"
+ }
+
+sha512sums="
+bd84aa6abbcbf6a16119111512fc1049018f787ac105888d4231a5d1b6d18a21713f79625a7ec5483d9eb83447281c416d35a339fb571c8b61cd17cd02121fe8  linux-samsung-sm-m115f-8294c3a7808bdda331d2291a46f3ffe6b22ecb46.tar.gz
+2c3302336381a9538be5fe2e098e9f0234a1b1ee75718e321a3dcacd7749f016787434811e6f36d58fab802bd6defc6abb80c087b0cacd38380b27cd08630589  config-samsung-sm-m115f.aarch64
+f748320ebe3e630b37977b6ea9f09498251cbf27368a7851b0a514853df6ad85da90cd282f62de1fbe95c551d91db82279be13611867263f4bc8aac3398aef82  fix-check-lxdialog.patch
+"
